@@ -340,9 +340,9 @@
                     if (!$tracker->checkDuplicat('al_country','name', $arrGet['id_country'])){
                         $tracker->insert('al_country' , array('name'=>$arrGet['id_country']));
                         $arrGet['id_country'] = $tracker->checkDuplicat('al_country','name', $arrGet['id_country']);
-                        $result["message"] .= 'adding new city '.$arrGet['id_country'].' <br />';   
+                        $result["message"] .= 'adding new country '.$arrGet['id_country'].' <br />';   
                     }else{
-                       $result["message"] .= 'duplicated city '.$arrGet['id_country'].' <br />';   
+                       $result["message"] .= 'duplicated country '.$arrGet['id_country'].' <br />';   
                     }
                     
                 }
@@ -353,9 +353,9 @@
                     if (!$tracker->checkDuplicat('al_region','name', $arrGet['id_region'])){
                         $tracker->insert('al_region' , array('name'=>$arrGet['id_region']));
                         $arrGet['id_region'] = $tracker->checkDuplicat('al_region','name', $arrGet['id_region']);
-                        $result["message"] .= 'adding new city '.$arrGet['id_region'].' <br />';   
+                        $result["message"] .= 'adding new region '.$arrGet['id_region'].' <br />';   
                     }else{
-                       $result["message"] .= 'duplicated city '.$arrGet['id_region'].' <br />';   
+                       $result["message"] .= 'duplicated region '.$arrGet['id_region'].' <br />';   
                     }
                     
                 }
