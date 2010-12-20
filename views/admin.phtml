@@ -1320,7 +1320,7 @@
 			    waitTitle: 'пожалуйста подождите...',
 			    waitMsg: 'вход в систему выполняется',
 			    success: function(form,action){
-				    gridStore.load();
+				    storeAll.load();
 				    Ext.Msg.alert('Трекер успешно добавлен !',action.result.message);
                                 }
 			});

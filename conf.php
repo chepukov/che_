@@ -9,6 +9,4 @@ $mysql_tbl_pref = 'al_';
 $mysql_tbl_points = 'points';
 $mysql_tbl_log = 'log';
 
-
-
 ?>

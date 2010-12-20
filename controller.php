@@ -286,7 +286,7 @@
                     if ($key!='param'&&$key!='_dc'){
                         //$arrGet['name'][$i] = $key;
                         //$arrGet['val'][$i] = $value;
-                        $arrGet[$key] =  addslashes($value);
+                        $arrGet[$key] =  stripslashes(urldecode($value));
                         $i++;
                     }
                     //print "$key ==> $value <br>";
@@ -337,9 +337,9 @@
                 if (!is_numeric($arrGet['id_country'])){
                     
                     // chek for duplication 
-                    if (!$tracker->checkDuplicat('al_city','name', $arrGet['id_country'])){
+                    if (!$tracker->checkDuplicat('al_country','name', $arrGet['id_country'])){
                         $tracker->insert('al_country' , array('name'=>$arrGet['id_country']));
-                        $arrGet['id_country'] = $tracker->checkDuplicat('al_city','name', $arrGet['id_country']);
+                        $arrGet['id_country'] = $tracker->checkDuplicat('al_country','name', $arrGet['id_country']);
                         $result["message"] .= 'adding new city '.$arrGet['id_country'].' <br />';   
                     }else{
                        $result["message"] .= 'duplicated city '.$arrGet['id_country'].' <br />';   
@@ -350,9 +350,9 @@
                 if (!is_numeric($arrGet['id_region'])){
                     
                     // chek for duplication 
-                    if (!$tracker->checkDuplicat('al_city','name', $arrGet['id_region'])){
+                    if (!$tracker->checkDuplicat('al_region','name', $arrGet['id_region'])){
                         $tracker->insert('al_region' , array('name'=>$arrGet['id_region']));
-                        $arrGet['id_region'] = $tracker->checkDuplicat('al_city','name', $arrGet['id_region']);
+                        $arrGet['id_region'] = $tracker->checkDuplicat('al_region','name', $arrGet['id_region']);
                         $result["message"] .= 'adding new city '.$arrGet['id_region'].' <br />';   
                     }else{
                        $result["message"] .= 'duplicated city '.$arrGet['id_region'].' <br />';   
@@ -361,6 +361,7 @@
                 }
                 
                 if (is_numeric($arrGet['file'])){
+                    $arrGet['visible'] = 1;
                     $trackerID = $tracker->insert('al_points' , $arrGet);
                     if ($trackerID){
                         $result["message"] .= 'tracker was added '.$trackerID.' <br />';
