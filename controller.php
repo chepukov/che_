@@ -286,7 +286,7 @@
                     if ($key!='param'&&$key!='_dc'){
                         //$arrGet['name'][$i] = $key;
                         //$arrGet['val'][$i] = $value;
-                        $arrGet[$key] =  addslashes($value);
+                        $arrGet[$key] =  stripslashes(urldecode($value));
                         $i++;
                     }
                     //print "$key ==> $value <br>";
