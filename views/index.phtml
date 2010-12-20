@@ -1,0 +1,441 @@
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="js/resources/css/ext-all.css" />
+    <style type="text/css">
+      html { height: 100% }
+      body { height: 100%; margin: 0px; padding: 0px }
+      #map_canvas { height: 100% }
+    </style>
+    
+    <script type="text/javascript"
+        src="http://maps.google.com/maps/api/js?sensor=true">
+    </script>
+    <script
+        src="js/adapter/ext/ext-base.js">
+    </script>
+    <script
+        src="js/ext-all.js">
+    </script>
+	
+<script type="text/javascript" >
+	
+	
+	scrWidth = 0;
+        scrHeight = 0;
+        
+	<?php
+	    if (isset($_GET['userID'])){
+		echo ('var userid = ' . $_GET['userID']);
+	    }else{
+		echo ('var userid = 0');
+	    }
+	?>
+	
+	
+	// This part gets the IP
+	var ip = '<?php echo $_SERVER["REMOTE_ADDR"] ?>';
+	var kmlURL = '<?php
+	    if ($_SERVER["HTTP_HOST"]!='modx.local')
+		echo ('http://' . $_SERVER["HTTP_HOST"]. '/');
+	    else
+		echo 'http://dl.dropbox.com/u/6441573/';
+		
+	    
+	    ?>';
+	var map;
+	var allDataURL;
+	
+	
+	if (userid > 0){
+	    allDataURL = 'controller.php?param=AllActiveByUserId&userID=' + userid;
+	}else{
+	    allDataURL = 'controller.php?param=AllActiveByUserId';
+	}
+	
+	//alert(allDataURL);
+	
+	/* dump   */
+	function dump(obj) {
+	    var out = '';
+	    
+	    for (var i in obj) {
+		out += '<p>';
+		out += i + ": " + obj[i] + "\n";
+		out += '</p>';
+	    }
+    
+	    return out;
+	}
+	
+	
+        /* jsonAllReader   */
+	jsonAllReader = new Ext.data.JsonReader({root:'rows'},['files','citys', 'trackers']);
+	
+	/* jsonCityReader   */
+	jsonCityReader = new Ext.data.JsonReader({root:'citys',idProperty: 'id'},['id','name']);
+	
+	/* jsonCountryReader   */
+	jsonCountryReader = new Ext.data.JsonReader({root:'country',idProperty: 'id'},['id','name']);
+	
+	/* jsonFilesReader   */
+	jsonFilesReader = new Ext.data.JsonReader({root:'files',idProperty: 'id'},['id','src','name']);
+	
+	/* jsonUsersReader   */
+	jsonUsersReader = new Ext.data.JsonReader({root:'users',idProperty: 'id'},['id','name']);
+	
+	/* jsonGridReader   */
+	jsonGridReader = new Ext.data.JsonReader({
+	    root:'trackers',
+	    idProperty: 'id'},[
+		'id',
+		'start_city_id',
+		'end_city_id',
+		'id_country',
+		'id_region',
+		'comments',
+		'visible',
+		{name: 'active', type: 'bool'},
+		'file',
+		'start_date',
+		'end_date']);
+	
+	
+    
+	
+	/* filesStore   */
+	var filesStore = new Ext.data.Store({
+		reader:  jsonFilesReader,
+		autoSave: true
+	});
+	
+	/* filesStore   */
+	var usersStore = new Ext.data.Store({
+		reader:  jsonUsersReader
+	});
+	
+	/* cityStore   */
+	var cityStore = new Ext.data.Store({
+		reader: jsonCityReader
+	});
+	
+	/* CountryStore   */
+	var countryStore = new Ext.data.Store({
+		reader:  jsonCountryReader,
+		remoteSort: true
+	});
+	
+
+	/* gridStore   */
+	var gridStore = new Ext.data.Store({
+	    reader: jsonGridReader,
+	    autoSave: false
+	});
+	
+	
+	
+	/* storeAll   */	
+	var storeAll = new Ext.data.Store({
+		url: allDataURL,
+		reader: jsonAllReader
+	
+	});
+
+	/* storeAll actions   */	
+	storeAll.on('load', function(Store, records,options){
+	    var i = 0;
+	    var count = 0;
+	   //dump(jsonAllReader.jsonData.rows.region);
+	    cityStore.loadData(Store.reader.jsonData.rows);
+	    filesStore.loadData(Store.reader.jsonData.rows);
+	    
+	    //regionStore.loadData(Store.reader.jsonData.rows);
+	    gridStore.loadData(Store.reader.jsonData.rows);
+	    usersStore.loadData(Store.reader.jsonData.rows);
+	    
+	    
+	    countryStore.loadData(Store.reader.jsonData.rows);
+	    
+	//    while (Store.reader.jsonData.rows.country[i]){
+	//	//count = gridStore.find('id_country', Store.reader.jsonData.rows.country[i].id);
+	//	
+	//	console.log('id = ' + Store.reader.jsonData.rows.country[i].id +'count = ' + count);
+	//	i++;
+	//    }
+	    //Ext.get('debug-canvas').dom.innerHTML = dump(Store.reader.jsonData.rows.country);
+	    
+	    
+	});
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+    
+	
+        /**
+        * Ext.onReady
+        */
+	Ext.onReady(function(){
+            
+	    
+	    storeAll.load();
+	    
+            /* define window size vars   */
+            scrWidth = document.documentElement.clientWidth;
+            scrHeight = document.documentElement.clientHeight;
+            
+            //Ext.Msg.alert('window resolution', 'width' + scrWidth + 'height' + scrHeight);
+	    
+	    
+	    
+	     /* comboEditStartCity   */
+	    var comboUsers = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: usersStore,
+		valueField: 'id',
+		displayField: 'name',
+		width: 250,
+		emptyText: 'Выберите пользователя...',
+		//transform: 'name',
+		mode: 'local',
+		listeners: {
+		    select: function(combo,  record,  index ) {
+			//var selVal = Ext.getCmp('firstComboID').getValue();
+			//var secondCombo = Ext.getCmp('secondComboID');
+			//secondCombo.store.reload({params: {yourParameterName: selVal}});
+			//alert("slected " + combo.getValue('name') + record.get("name"));
+			//comboEditStartCity.setValue(record.get("name"));
+			
+			Ext.Ajax.request({
+			    url : 'controller.php?param=trackersByUserId' , 
+			    params : { userID : combo.getValue('name') },
+			    method: 'GET',
+			    success: function ( result, request ) {
+				
+				    try {
+					var jsonData = Ext.util.JSON.decode(result.responseText);
+					gridStore.loadData(jsonData.rows);
+				    //    Ext.MessageBox.alert('Success', 'Decode of stringData OK<br />jsonData.date = '
+				    //			 + jsonData.rows);
+				    }
+				    catch (err) {
+					Ext.MessageBox.alert('ERROR', 'Could not decode ' + result.responseText);
+				    }
+				    
+				    //Ext.MessageBox.alert('Success', 'Data return from the server: '+ result.responseText); 
+			    },
+			    failure: function ( result, request) { 
+				    Ext.MessageBox.alert('Failed', result.responseText); 
+			    } 
+			});
+		    }
+		}
+    
+	    });
+	    
+	    usersStore.on('load', function(Store, records,options){
+	    
+		if(userid > 0){
+		    comboUsers.setValue(userid);
+		}
+	    });
+	    
+	    
+	    
+	    
+	      /* comboCountry   */
+	    var comboCountry = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: countryStore,
+		valueField: 'id',
+		displayField: 'name',
+		width: 250,
+		emptyText: 'Выберите страну...',
+		//transform: 'name',
+		mode: 'local',
+		listeners: {
+		    select: function(combo,  record,  index ) {
+			gridStore.filter([{
+			    property     : 'id_country',
+			    value        : record.data.id,
+			    anyMatch     : true, //optional, defaults to true
+			    caseSensitive: true  //optional, defaults to true
+			}])
+		    }
+		}
+    
+	    });
+	    
+	    
+	    // pluggable renders
+	    function renderComments(value, p, record){
+	       var visStr = '';
+		    
+		    
+		var startCityName = cityStore.getById(record.data.start_city_id).get("name");
+		var endCityName = cityStore.getById(record.data.end_city_id).get("name");
+		//var countryName = countryStore.getById(countryId).get("name");
+		//var regionName = regionStore.getById(regionId).get("name");
+		//var file = filesStore.getById(record.data.file).get("name");
+    
+		
+		return '<div style="white-space:normal !important;">'+
+		    '<h2>' + startCityName + '-' + endCityName + '</h2>' +
+		    '<h3>' + record.data.start_date + '<>' + record.data.end_date + '</h3>' +
+		    value +
+		    '</div>';
+		//return String.format('<b> <p> {0} </p> <br /> {1}',
+		//	value, record.id);
+	    }
+	    
+	    
+	    
+	    /*
+	    * cm
+	    */
+	    var cm = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [//{
+			//header:'id',
+			//dataIndex: 'id',
+			//width: 70
+		    //},
+		    {
+			header:'Комментарии',
+			dataIndex: 'comments',
+			renderer: renderComments,
+			width: 250
+		    }]
+	    });
+	    
+	    
+	    var view = new Ext.grid.GridView();
+	    
+	    /* gridTrackers   */
+	    var gridTrackers = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список трекеров',
+		    height:scrHeight-100,
+		    store: gridStore,
+		    view:view,
+		    loadMask: true,
+		    clickstoEdit: 1,
+		    cm: cm,
+		    tbar: [{
+		       text: 'Показать все',
+		       handler : function(){
+			   // access the Record constructor through the grid's store
+			   //Ext.Msg.alert('Add track');
+			   }
+		       },'-',
+		       {
+		       text: 'Очистить все',
+		       handler : function(){
+			   // access the Record constructor through the grid's store
+			   //Ext.Msg.alert('Add track');
+			   }
+		       }
+		    ]
+	    });
+	    
+	    gridTrackers.on({
+		    'cellclick':{
+			fn: function(grid, rowIndex, columnIndex, e){
+			    
+			    var rec = gridTrackers.store.getAt(rowIndex);
+			    rec.data.comments = '<div style="background-color:#ccc;">' + rec.data.comments + '</div>';
+			    //Ext.Msg.alert('cellclick',dump(rec.data));
+			    var file = filesStore.getById(rec.data.file).get("src");
+			    //Ext.Msg.alert('cellclick',kmlURL + file + '--' + ip);
+			    
+			    var ctaLayer = new google.maps.KmlLayer(kmlURL + file);
+			    ctaLayer.setMap(map);
+			    gridTrackers.view.refresh(true);
+
+			}
+		    }
+	    });
+	    
+            
+            /* mainPanel   */
+            var mainPanel = new Ext.Panel({
+                renderTo: 'show-map-canvas',
+                //width: scrWidth,
+                //height: scrHeight,
+		layoutConfig: {
+		    align: 'stretch'
+		},
+                height: scrHeight,
+		monitorResize: true,
+                title: 'трекер',
+                layout: 'border',
+                items: [{
+                    //title: 'Список трекеров',
+                    region:'west',
+                    margins: '5 0 0 5',
+                    width: 300,
+                    collapsible: true,   // make collapsible
+                    margins: '5 5 0 5', // adjust top margin when collapsed
+                    id: 'west-region-container',
+                    layout: 'fit',
+                    unstyled: true,
+		    items:            // this TabPanel is wrapped by another Panel so the title will be applied
+			new Ext.Panel({
+			    border: false, // already wrapped so don't add another border
+			    activeTab: 1, // second tab initially active
+			    tabPosition: 'top',
+			    items: [comboUsers,comboCountry,gridTrackers]
+			})
+                },{
+                    title: 'Трек',
+                    region: 'center',     // center region is required, no width/height specified
+                    xtype: 'container',
+                    id: 'center-region-container',
+                    layout: 'fit',
+                    margins: '5 5 0 0'
+                }]
+            });
+            
+            
+            
+            initializeMap();
+            
+        });
+        
+    /**
+     * initializeMap
+     */
+    function initializeMap() {
+    
+        var myLatlng = new google.maps.LatLng(41.875696,-87.624207);
+        var myOptions = {
+          zoom: 11,
+          center: myLatlng,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        
+        map = new google.maps.Map(document.getElementById("center-region-container"), myOptions);
+    }
+
+</script>
+</head>
+
+<body>
+
+    <div id="show-map-canvas" ></div>
+    <div id="debug-canvas" >debug-canvas</div>
+</body>
+
+</html>

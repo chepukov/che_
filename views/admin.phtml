@@ -1,0 +1,1528 @@
+<html>
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="js/resources/css/ext-all.css" />
+    <link rel="stylesheet" type="text/css" href="js/examples/ux/fileuploadfield/css/fileuploadfield.css" />
+    <style type="text/css">
+      html { height: 100% }
+      body { height: 100%; margin: 0px; padding: 0px }
+      #map_canvas { height: 100% }
+    </style>
+    
+<!--     <script type="text/javascript"
+        src="http://maps.google.com/maps/api/js?sensor=true">
+    </script> -->
+<script
+        src="js/adapter/ext/ext-base.js">
+    </script>
+<script
+        src="js/ext-all-debug-w-comments.js">
+    </script>
+    
+    <script
+        src="js/examples/ux/fileuploadfield/FileUploadField.js">
+    </script>
+    
+   
+	
+<script type="text/javascript" >
+	
+	var winAddTracker;
+	var winAddFile;
+	// shorthand alias
+	var fm = Ext.form;
+
+	
+	
+	
+	
+	/* dump   */
+	function dump(obj) {
+	    var out = '';
+	    
+	    for (var i in obj) {
+		out += '<p>';
+		out += i + ": " + obj[i] + "\n";
+		out += '</p>';
+	    }
+    
+	    return out;
+	}
+
+	
+	/*
+	* PROXY
+	*/	
+	var proxy = new Ext.data.HttpProxy({
+            api: {
+                read : {url: 'controller.php?param=selectAllFiles', method: 'GET'},
+                //create : 'app.php/users/create',
+                //update: 'app.php/users/update',
+                destroy: {url: 'controller.php?param=delFile', method: 'GET'}
+            }
+        });
+	
+	var proxyTracker = new Ext.data.HttpProxy({
+            api: {
+                read : {url: 'controller.php?param=selectAllTrackers', method: 'GET'},
+		update: {url: 'controller.php?param=editeTracker', method: 'GET'},
+		//create : {url: 'controller.php?param=selectAll', method: 'GET'},
+                //load : {url: 'controller.php?param=selectAll', method: 'GET'},
+                save: {url: 'controller.php?param=editeTracker', method: 'GET'},
+                destroy: {url: 'controller.php?param=delTracker', method: 'GET'}
+            }
+        });
+	
+	
+	
+	/*
+	* READERS
+	*/
+	
+	/* jsonCityReader   */
+	jsonCityReader = new Ext.data.JsonReader({root:'citys',idProperty: 'id'},['id','name']);
+	
+	/* jsonFilesReader   */
+	jsonFilesReader = new Ext.data.JsonReader({root:'files',idProperty: 'id'},['id','src','name']);
+	
+	/* jsonCountryReader   */
+	jsonCountryReader = new Ext.data.JsonReader({root:'country',idProperty: 'id'},['id','name']);
+	
+	/* jsonRegionReader   */
+	jsonRegionReader = new Ext.data.JsonReader({root:'region',idProperty: 'id'},['id','src','name']);
+	
+	/* jsonAllReader   */
+	jsonAllReader = new Ext.data.JsonReader({root:'rows'},['files','citys', 'trackers']);
+	
+	/* jsonUsersReader   */
+	jsonUsersReader = new Ext.data.JsonReader({root:'users',idProperty: 'id'},['id','name']);
+	
+	
+	/* jsonGridReader   */
+	jsonGridReader = new Ext.data.JsonReader({
+	    root:'trackers',
+	    idProperty: 'id',
+	    totalProperty: 'totalCount'},
+	    [
+	    'id',
+	    'start_city_id',
+	    'end_city_id',
+	    'id_country',
+	    'id_region',
+	    'comments',
+	    'visible',
+	    'file',
+	    'start_date',
+	    'end_date',
+	    'id_user']
+	);
+	
+	
+	/*
+	* WRITERS
+	*/
+	var jsonFilesWriter = new Ext.data.JsonWriter({
+	    encode: true,
+	    writeAllFields: true
+	});
+	
+	var jsonGridWriter = new Ext.data.JsonWriter({
+	    encode: true,
+	    writeAllFields: false
+	});
+	
+	
+	
+	/*
+        all exception events
+        */
+        Ext.data.DataProxy.addListener('exception', function(proxy, type, action, options, res) {
+            if (type === 'remote') {
+                Ext.Msg.show({
+                    title: 'REMOTE EXCEPTION',
+                    msg: res.raw.message,
+                    icon: Ext.MessageBox.ERROR,
+                    buttons: Ext.Msg.OK
+                });
+		
+		//dump(res.raw);
+            }
+        });
+	
+	
+	/* cityStore   */
+	var cityStore = new Ext.data.Store({
+		reader: jsonCityReader
+	});
+	
+	/* filesStore   */
+	var filesStore = new Ext.data.Store({
+		//url:'',
+		reader:  jsonFilesReader,
+		proxy:proxy,
+		writer: jsonFilesWriter,
+		remoteSort: true,
+		autoSave: true
+	});
+	
+	/* CountryStore   */
+	var countryStore = new Ext.data.Store({
+		reader:  jsonCountryReader,
+		remoteSort: true
+	});
+	
+	/* regionStore   */
+	var regionStore = new Ext.data.Store({
+		reader:  jsonRegionReader,
+		remoteSort: true
+	});
+	
+	/* filesStore   */
+	var usersStore = new Ext.data.Store({
+		reader:  jsonUsersReader,
+		autoSave: true
+	});
+	
+	
+	
+	/* gridStore   */
+	var gridStore = new Ext.data.Store({
+	    //url:'controller.php?param=selectAll',
+	    reader: jsonGridReader,
+	    proxy:proxyTracker,
+	    writer: jsonGridWriter,
+	    autoSave: true,
+	    remoteSort: false
+	    //sortInfo: {field:'comments', direction:'ASC'}//,
+	//    listeners: {
+	//	datachanged: function(store) {
+	//	    alert(dump(store));
+	//	}
+	//    }
+	});
+	
+	
+	
+	/* storeAll   */	
+	var storeAll = new Ext.data.Store({
+		url: 'controller.php?param=All',
+		reader: jsonAllReader
+	
+	});
+
+	/* storeAll actions   */	
+	storeAll.on('load', function(Store, records,options){
+	   //dump(jsonAllReader.jsonData.rows.region);
+	    cityStore.loadData(Store.reader.jsonData.rows);
+	    filesStore.loadData(Store.reader.jsonData.rows);
+	    countryStore.loadData(Store.reader.jsonData.rows);
+	    regionStore.loadData(Store.reader.jsonData.rows);
+	    gridStore.loadData(Store.reader.jsonData.rows);
+	    usersStore.loadData(Store.reader.jsonData.rows);
+	});
+	
+	   
+	
+	
+	
+	
+        
+        /**
+        * Ext.onReady
+        */
+	Ext.onReady(function(){
+	    
+	    Ext.QuickTips.init();
+            
+            /* define window size vars   */
+            scrWidth = document.documentElement.clientWidth;
+            scrHeight = document.documentElement.clientHeight;
+            panelWestWidth = 300;
+	    
+	    
+            //Ext.Msg.alert('window resolution', 'width' + scrWidth + 'height' + scrHeight);
+	    
+  
+	    
+
+	    /* load data   */
+	    
+	    //cityStore.load();
+	    storeAll.load();
+	    //gridStore.load();
+            
+	   
+	    
+	    
+	    
+	    
+	    
+	    ////////////////////
+	    
+	    var active = new Ext.form.Checkbox({
+		name : 'active',
+		fieldLabel : 'Active',
+		checked : true,
+		inputValue : '1'
+	    });
+	    
+	
+	    
+	    /* editGridRes   */
+	    var editGridCity = new Ext.form.TextField();
+	    
+	    
+	     /* comboEditStartCity   */
+	    var comboEditStartCity = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: cityStore,
+		valueField: 'id',
+		displayField: 'name',
+		//transform: 'name',
+		mode: 'local',
+		listeners: {
+		    select: function(combo,  record,  index ) {
+			//var selVal = Ext.getCmp('firstComboID').getValue();
+			//var secondCombo = Ext.getCmp('secondComboID');
+			//secondCombo.store.reload({params: {yourParameterName: selVal}});
+			//alert("slected " + combo.getValue('name') + record.get("name"));
+			//comboEditStartCity.setValue(record.get("name"));
+		    }
+		}
+
+	    });
+	    
+	    /* comboEditEndCity   */
+	    var comboEditEndCity = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: cityStore,
+		valueField: 'id',
+		displayField: 'name',
+		mode: 'local'
+	    });
+
+
+
+	    
+	    
+	    /*
+		PROPORTY FORM
+	    */	
+	    propFormTrecker = new Ext.FormPanel({
+		layout: 'column',    // Specifies that the items will now be arranged in columns
+		title: 'Дополнительно',
+		id: 'prop-grid-trecker',
+		items: [{
+		    xtype: 'fieldset',
+		    labelWidth: 190,
+		    title:'Детали трекера',
+		    //defaults: {width: 240, border:false},    // Default config options for child items
+		    defaultType: 'textfield',
+		    autoHeight: true,
+		    bodyStyle: Ext.isIE ? 'padding:0 0 5px 15px;' : 'padding:10px 15px;',
+		    style: {
+			"margin-left": "10px", // when you add custom margin in IE 6...
+			"margin-right": Ext.isIE6 ? (Ext.isStrict ? "-10px" : "-13px") : "0"  // you have to adjust for it somewhere else
+		    },
+		    items: [{
+			fieldLabel: 'Пользователь',
+			name: 'id_user',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: usersStore,
+			valueField: 'id',
+			displayField: 'name',
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    //alert('value =' + value.id);
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //Ext.get('track_id').dom.value;
+				    //propFormTrecker.value = value.id;
+				}
+			    }}
+			},{
+			xtype:'textarea',
+			fieldLabel: 'Комментарии',
+			name: 'comments',
+			allowBlank:false,
+			height: 150,
+			width:200,
+			listeners:{
+				change:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				    }
+				}
+			    }
+			},{
+			fieldLabel: 'Город отправления',
+			name: 'start_city_id',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: cityStore,
+			valueField: 'id',
+			displayField: 'name',
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			fieldLabel: 'Город прибытия',
+			name: 'end_city_id',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: cityStore,
+			valueField: 'id',
+			displayField: 'name',
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			fieldLabel: 'Страна',
+			name: 'id_country',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: countryStore,
+			valueField: 'id',
+			displayField: 'name',
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			fieldLabel: 'Регион',
+			name: 'id_region',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: regionStore,
+			valueField: 'id',
+			displayField: 'name',
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			xtype: 'datefield',
+			fieldLabel: 'Дата начала',
+			name: 'start_date',
+			format: 'Y-m-d',
+			allowBlank:false,
+			listeners:{
+			    select:{
+				fn:function(e, v) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								e.name,
+								e.getRawValue(),
+								Ext.get('trackers').dom.value);
+				    
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			xtype: 'datefield',
+			fieldLabel: 'Дата окончания',
+			format: 'Y-m-d',
+			allowBlank:false,
+			name: 'end_date',
+			listeners:{
+			    select:{
+				fn:function(e, v) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								e.name,
+								e.getRawValue(),
+								Ext.get('trackers').dom.value);
+				    
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			fieldLabel: 'Файл',
+			name: 'file',
+			xtype: 'combo',
+			triggerAction: 'all',
+			store: filesStore,
+			valueField: 'id',
+			displayField: 'name',
+			allowBlank:false,
+			mode: 'local',
+			listeners:{
+			    select:{
+				fn:function(combo, value) {
+				    Ext.get('trackers').dom.value = encodeAJAXreq(
+								Ext.get('track_id').dom.value,
+								combo.name,
+								value.id,
+								Ext.get('trackers').dom.value);
+				    //alert(Ext.get('trackers').dom.value);
+				}
+			    }}
+			},{
+			xtype:'hidden',
+			id:'track_id',
+			name:'track_id'
+			},{
+			xtype:'hidden',
+			id:'trackers',
+			name:'trackers'
+			}
+		    ]
+		}],
+                buttons: [{
+                    text: 'Сохранить изменения',
+                    handler: function(){
+                        if(propFormTrecker.getForm().isValid()){
+                            form_action = 1;
+                            propFormTrecker.getForm().submit({
+                                url: 'controller.php?param=editeTracker&trackers='+
+				    encodeURIComponent('[' + Ext.get('trackers').dom.value + ']'),
+				method: 'POST',
+				encode: true,
+                                waitMsg: 'идет загрузка файла...',
+                                success: function(form,action){
+				    // update content of grid
+				    gridStore.load();
+				    Ext.get('trackers').dom.value = '';
+				    Ext.Msg.alert('Изменение трекера',action.result.message);
+                                },
+				failure: function(form,action){
+				    Ext.Msg.alert('Изменение трекера',action.result.message);
+				    Ext.get('trackers').dom.value = '';
+				    //action.result.message
+				//    if (a.failureType === Ext.form.Action.CONNECT_FAILURE){
+				//	Ext.Msg.alert('Failure', 'Server reported:'+a.response.status+' '+a.response.statusText);
+				//    }
+				//    if (a.failureType === Ext.form.Action.SERVER_INVALID){
+				//	Ext.Msg.alert('Warning', a.result.errormsg);
+				//    }
+				}
+                            });
+                        }
+                    }
+                },{
+                    text: 'Очистить список изменений',
+                    handler: function(){
+                         Ext.get('trackers').dom.value = '';
+                    }
+                }]
+	    })
+	    
+	    //Ext.get('debug-canvas').update(dump(propGridTrecker));
+	    //alert(dump(propGridTrecker));
+	   //Ext.get('debug-canvas').dom.innerHTML = (dump(propGridTrecker));
+
+	    
+	    
+	    propFormTrecker.on({
+		actioncomplete: function(form, action){
+		    
+		    //alert('action' + action.type);
+		    //if(action.type == 'load'){
+		    //var contact = action.result.data;
+		    //Ext.getCmp(contact.mailingAddress).setValue(true);
+		    //contactForm.setTitle(contact.firstName + ' ' +
+		    //contact.lastName);
+		    //Ext.getDom('pic').src = contact.pic;
+		    //}
+		}
+	    });
+	    
+	    
+	    
+	    
+	        
+	    /*
+	     TRACKER GRID
+	    */
+	    
+	     /* comboEditStartCity   */
+	    var comboUsers = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: usersStore,
+		valueField: 'id',
+		displayField: 'name',
+		width: 250,
+		emptyText: 'Выберите пользователя...',
+		//transform: 'name',
+		mode: 'local',
+		listeners: {
+		    select: function(combo,  record,  index ) {
+			gridStore.filter([{
+			   property     : 'id_user',
+			   value        : record.data.id,
+			   anyMatch     : true, //optional, defaults to true
+			   caseSensitive: true  //optional, defaults to true
+			}])
+		    }
+		}
+    
+	    });
+	    
+	    
+	    
+	      /* comboCountry   */
+	    var comboCountry = new Ext.form.ComboBox({
+		triggerAction: 'all',
+		store: countryStore,
+		valueField: 'id',
+		displayField: 'name',
+		width: 250,
+		emptyText: 'Выберите страну...',
+		//transform: 'name',
+		mode: 'local',
+		listeners: {
+		    select: function(combo,  record,  index ) {
+			
+		    }
+		}
+    
+	    });
+	    
+	    
+	    
+	    // pluggable renders
+	    function renderComments(value, p, record){
+		var visStr = '';
+		
+		
+		var startCityName = cityStore.getById(record.data.start_city_id).get("name");
+		var endCityName = cityStore.getById(record.data.end_city_id).get("name");
+		//var countryName = countryStore.getById(countryId).get("name");
+		//var regionName = regionStore.getById(regionId).get("name");
+		var file = filesStore.getById(record.data.file).get("name");
+
+		
+		return '<div style="white-space:normal !important;">'+
+		    '<h2>' + startCityName + '-' + endCityName + '</h2>' +
+		    '<h3>' + record.data.start_date + '<>' + record.data.end_date + '</h3>' +
+		    value +
+		    '<h3>' + file+ '</h3>' +
+		    '</div>';
+		//return String.format('<b> <p> {0} </p> <br /> {1}',
+		//	value, record.id);
+	    }
+	    
+	    // renderVisible
+	    function  renderUser(value, p, record){
+		
+		if(usersStore.getById(record.data.id_user)){
+		    var user = usersStore.getById(record.data.id_user).get("name");
+		    return '<div style="white-space:normal !important;">'+
+		    '<h2>' + user + '</h2>';
+		}
+	    }
+	    
+	    
+	     //renderUser
+	    function renderVisible(value, p, record){
+		var visStr = '';
+		
+		if (record.data.visible > 0){
+		    visStr = 'Да';
+		}else{
+		    visStr = 'Нет';
+		}
+		
+		
+		return '<div style="white-space:normal !important;">'+
+		    '<h2>' + visStr + '</h2>';
+	    }
+	   
+	    
+	    
+	     /*
+	    * cm
+	    */
+	    var cm = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [{
+			header:'id',
+			dataIndex: 'id',
+			width: 20
+		    },{
+		    header: 'активен',
+		    dataIndex: 'visible',
+		    width: 30,
+		    renderer: renderVisible,
+		    editor: new fm.ComboBox({
+			typeAhead: true,
+			triggerAction: 'all',
+			transform: 'visible',
+			lazyRender: true,
+			listClass: 'x-combo-list-small'
+			})
+		    },{
+			header:'Комментарии',
+			dataIndex: 'comments',
+			id:'comments',
+			renderer: renderComments,
+			editor: new fm.TextField({
+			    allowBlank: false
+			})
+		    },{
+			
+			header:'Дата начала',
+			dataIndex: 'start_date',
+			width: 40
+		    },{
+			
+			header:'Дата окончания',
+			dataIndex: 'end_date',
+			width: 40
+		    },{
+			
+			header:'Пользователь',
+			dataIndex: 'id_user',
+			renderer: renderUser,
+			width: 40
+		    }]
+	    });
+	    
+	    var smTracker = new Ext.grid.RowSelectionModel({
+		singleSelect: true,
+		id:'smTrackers',
+		listeners: {
+		    rowselect: function(sm, row, rec) {
+			// when user select a row we send data to Editor Form
+			renderProportys(sm, row, rec);}
+		    }
+		//    ,{
+		//    viewready: function(g) {
+		//	g.getSelectionModel().selectRow(0);
+		//    }
+		//}]
+	    })   
+	
+	    
+	    /* gridTrackers   */
+	    var gridTrackers = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    //layout:'fit',
+		    title: 'Список трекеров',
+		    height:scrHeight-100,
+		    //MaxHeight :600,
+		    autoExpandColumn:'comments',
+		    store: gridStore,
+		    loadMask: true,
+		    clickstoEdit: 1,
+		    cm: cm,
+		    sm: smTracker,
+		    // customize view config
+		    viewConfig: {
+			forceFit:true,
+			enableRowBody:true,
+			showPreview:true,
+			getRowClass : function(record, rowIndex, p, store){
+			//    if(this.showPreview){
+			//	p.body = '<p>'+record.data.excerpt+'</p>';
+			//	return 'x-grid3-row-expanded';
+			//    }
+			//    return 'x-grid3-row-collapsed';
+			}
+		    },
+		    // paging bar on the bottom
+		    bbar: new Ext.PagingToolbar({
+			pageSize:10,
+			store: gridStore,
+			displayInfo: true,
+			displayMsg: 'Показано {0} - {1} из {2}',
+			emptyMsg: "Нет данных для отображения"
+		    }),
+		    tbar: [{
+			text: 'Добавить трекер',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddTracker.show(this);
+			    }
+			},'-',{
+			text: 'Добавить файл',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    
+			    //Ext.get('debug-canvas').update(dump(gridStore));
+			    var index = gridTrackers.getSelectionModel().last;
+			    //alert(index);
+			    
+			    var rec = gridTrackers.store.getAt(index);
+			    //gridStore.write();
+			    gridTrackers.store.remove(rec);
+			    //proxyTracker.request;
+			    //Ext.get('debug-canvas').dom.innerHTML = dump(gridStore.events);
+			    //gridStore.destroy();
+			    
+			    }
+			}, '-',comboUsers]
+	    });
+	    
+	//    gridTrackers.on({
+	//	    'afteredit':{
+	//		fn: function(e){
+	//		    //Ext.Msg.alert('cellclick','afteredite');
+	//		    //gridStore.save();
+	//		}
+	//	    }
+	//    });
+	    
+
+	    
+	    
+	    /*
+	     FILES GRID
+	    */
+	    
+	    
+	     /*
+	    * cmFiles
+	    */
+	    var cmFiles = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [
+		    {header:'id',
+			dataIndex: 'id',
+			width: 30},
+		    {header:'Путь',
+			dataIndex: 'src',
+			width: 150},
+		    {header:'Файл',
+			dataIndex: 'name',
+			width: 150}]
+	    });
+	    
+	    
+	    /* gridFiles   */
+	    var gridFiles = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список файлов',
+		    height:400,
+		    store: filesStore,
+		    loadMask: true,
+		    //clickstoEdit: 1,
+		    cm: cmFiles,
+		    tbar: [{
+			text: 'Добавить',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    if (!index) {
+				return false;
+			    }
+			    var rec = gridFiles.store.getAt(index[0]);
+			    gridFiles.store.remove(rec);
+			    }
+			}]
+	    });
+	    
+	    
+	    /*
+	     USERS GRID
+	    */
+	    
+	     /*
+	    * cmUsers
+	    */
+	    var cmUsers = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [
+		    {header:'id',
+			dataIndex: 'id',
+			width: 30},
+		    {header:'Имя',
+			dataIndex: 'name',
+			width: 200}]
+	    });
+	    
+	    
+	    /* gridUsers   */
+	    var gridUsers = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список пользователей',
+		    height:400,
+		    store: usersStore,
+		    loadMask: true,
+		    //clickstoEdit: 1,
+		    cm: cmUsers,
+		    tbar: [{
+			text: 'Добавить',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    if (!index) {
+				return false;
+			    }
+			    var rec = gridFiles.store.getAt(index[0]);
+			    gridFiles.store.remove(rec);
+			    }
+			}]
+	    });
+	    
+	    
+	    /*
+	     CITY GRID
+	    */
+	    
+	     /*
+	    * cmCity
+	    */
+	    var cmCity = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [
+		    {header:'id',
+			dataIndex: 'id',
+			width: 30},
+		    {header:'Имя',
+			dataIndex: 'name',
+			width: 200}]
+	    });
+	    
+	    
+	    /* gridCity   */
+	    var gridCity = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список городов',
+		    height:400,
+		    store: cityStore,
+		    loadMask: true,
+		    //clickstoEdit: 1,
+		    cm: cmUsers,
+		    tbar: [{
+			text: 'Добавить',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    if (!index) {
+				return false;
+			    }
+			    var rec = gridFiles.store.getAt(index[0]);
+			    gridFiles.store.remove(rec);
+			    }
+			}]
+	    });
+	    
+	    
+	     /*
+	    * cmCountry
+	    */
+	    var cmCountry = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [
+		    {header:'id',
+			dataIndex: 'id',
+			width: 30},
+		    {header:'Название',
+			dataIndex: 'name',
+			width: 300}]
+	    });
+	    
+	    
+	    /* gridCountry   */
+	    var gridCountry = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список стран',
+		    height:400,
+		    store: countryStore,
+		    loadMask: true,
+		    //clickstoEdit: 1,
+		    cm: cmCountry,
+		    tbar: [{
+			text: 'Добавить',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    if (!index) {
+				return false;
+			    }
+			    var rec = gridFiles.store.getAt(index[0]);
+			    gridFiles.store.remove(rec);
+			    }
+			}]
+	    });
+	    
+	    
+	     /*
+	    * cmRegion
+	    */
+	    var cmRegion = new Ext.grid.ColumnModel({
+		// specify any defaults for each column
+		defaults: {
+		    sortable: true // columns are not sortable by default           
+		},
+		columns: [
+		    {header:'id',
+			dataIndex: 'id',
+			width: 30},
+		    {header:'Название',
+			dataIndex: 'name',
+			width: 300}]
+	    });
+	    
+	    
+	    /* gridRegion   */
+	    var gridRegion = new Ext.grid.EditorGridPanel({
+		    //renderTo: 'center-region-container',
+		    layout:'fit',
+		    title: 'Список регионов',
+		    height:400,
+		    store: regionStore,
+		    loadMask: true,
+		    //clickstoEdit: 1,
+		    cm: cmRegion,
+		    tbar: [{
+			text: 'Добавить',
+			handler : function(){
+			    // access the Record constructor through the grid's store
+			    //Ext.Msg.alert('Add track');
+			    winAddFile.show(this);
+			    }
+			},'-',{
+			text: 'Удалить',
+			handler : function(){
+			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    if (!index) {
+				return false;
+			    }
+			    var rec = gridFiles.store.getAt(index[0]);
+			    gridFiles.store.remove(rec);
+			    }
+			}]
+	    });
+	    
+	    
+	    
+            /*
+            	MAIN PANEL
+            */
+            var mainPanel = new Ext.Panel({
+                renderTo: 'main-canvas',
+		monitorResize: true,
+		//autoWidth: true,
+		layout: 'border',
+		layoutConfig: {
+		    align: 'stretch'
+		},
+                height: scrHeight,
+                title: 'Администрирование',
+                items: [{
+		    title: 'Трек',
+		    id:'main-panel-center',
+		    region: 'center',     // center region is required, no width/height specified
+		    xtype: 'container',
+		    collapsible: true,
+		    split: true,
+		    id: 'center-region-container',
+		    layout: 'fit',
+		    margins: '5 5 0 0',
+		    cmargins: '5 5 0 0',
+		    items:        
+			new Ext.Panel({
+			    border: false,
+			    layout: 'fit',
+			    id:'tab-panel-center',
+			    items: gridTrackers
+			})
+		    },{
+			region: 'east',
+			title: 'Редактирование',
+			id:'main-panel-east',
+			collapsible: true,
+			split: true,
+			width: 700, // give east and west regions a width
+			minSize: 600,
+			maxSize: 900,
+			margins: '5 5 0 0',
+			cmargins: '5 5 0 0',
+			layout: 'fit', // specify layout manager for items
+			items:            // this TabPanel is wrapped by another Panel so the title will be applied
+			new Ext.TabPanel({
+			    border: false, // already wrapped so don't add another border
+			    activeTab: 0, // second tab initially active
+			    tabPosition: 'top',
+			    items: [propFormTrecker, gridFiles,gridUsers, gridCity,gridCountry,gridRegion]
+			})
+		    }]
+            });
+	    
+	    Ext.EventManager.onWindowResize(mainPanel.doLayout, mainPanel);
+	    Ext.getCmp('main-panel-east').on({
+		'resize':{
+		    fn: function(e){
+			//Ext.Msg.alert('collapse','collapse' + e.id);
+			//gridTrackers.syncSize();//doLayout();
+			//Ext.getCmp('tab-panel-center').doLayout();
+		    }
+		}
+	    });
+
+	    
+
+	    
+	    
+	    
+	    /*
+	    * UPLOAD FILE FORM
+	    */
+	    fileUploadform= new Ext.FormPanel({
+                fileUpload: true,
+                width: 300,
+		title: 'Добавить файл',
+                autoHeight: true,
+		layout: 'fit',
+                bodyStyle: 'padding: 10px 10px 10px 10px;',
+                labelWidth: 50,
+                items:[
+                {
+                    xtype: 'fileuploadfield',
+                    id: 'uploadFile',
+                    emptyText: 'Select a document to upload...',
+                    fieldLabel: 'File',
+                    buttonText: 'Browse'
+                }],
+                buttons: [{
+                    text: 'Upload',
+                    handler: function(){
+                        if(fileUploadform.getForm().isValid()){
+                            form_action = 1;
+                            fileUploadform.getForm().submit({
+                                url: 'controller.php?param=addFile',
+                                waitMsg: 'идет загрузка файла...',
+                                success: function(form,action){
+				    // update content of grid
+				    filesStore.load();
+				    Ext.Msg.alert('загрузка файла',action.result.message);
+                                }
+                            });
+			    
+			    
+                        }
+                    }
+                }]
+            })
+	    
+	    
+	    /*
+	    * FORM ADD TRACKER
+	    */
+	    var formAddTracker = new Ext.FormPanel({
+	    labelWidth: 75, // label settings here cascade unless overridden
+	    //url:'controller.php?param=addTracker',
+	    frame:true,
+	    method:'GET',
+	    //fileUpload: true,
+	    title: 'Добавить трекер',
+	    bodyStyle:'padding:5px 5px 0',
+	    width: 390,
+	    defaults: {width: 230},
+	    defaultType: 'textfield',
+    
+	    items: [
+		    new Ext.form.ComboBox({
+			fieldLabel: 'Начало маршрута',
+			hiddenName:'id_user',
+			allowBlank:false,
+			store: usersStore,
+			valueField:'id',
+			displayField:'name',
+			typeAhead: true,
+			mode: 'local',
+			triggerAction: 'all',
+			emptyText:'Выбирете пользователя...',
+			selectOnFocus:true,
+			width:190
+		    })
+		    ,{
+			fieldLabel: 'Комментарии',
+			name: 'comments',
+			allowBlank:false
+		    }, new Ext.form.ComboBox({
+			fieldLabel: 'Начало маршрута',
+			hiddenName:'start_city_id',
+			allowBlank:false,
+			store: cityStore,
+			valueField:'id',
+			displayField:'name',
+			typeAhead: true,
+			mode: 'local',
+			triggerAction: 'all',
+			emptyText:'Выбирете город...',
+			selectOnFocus:true,
+			width:190
+		    }),
+		    new Ext.form.ComboBox({
+			fieldLabel: 'Конец маршрута',
+			hiddenName:'end_city_id',
+			allowBlank:false,
+			store: cityStore,
+			valueField:'id',
+			displayField:'name',
+			typeAhead: true,
+			mode: 'local',
+			triggerAction: 'all',
+			emptyText:'Выбирете город...',
+			selectOnFocus:true,
+			width:190
+		    }),
+		    new Ext.form.ComboBox({
+			fieldLabel: 'Страна',
+			hiddenName:'id_country',
+			allowBlank:false,
+			store: countryStore,
+			valueField:'id',
+			displayField:'name',
+			typeAhead: true,
+			mode: 'local',
+			triggerAction: 'all',
+			emptyText:'Выбирете cтрану...',
+			selectOnFocus:true,
+			width:190
+		    }),
+		    new Ext.form.ComboBox({
+			fieldLabel: 'Регион',
+			hiddenName:'id_region',
+			allowBlank:false,
+			store: regionStore,
+			valueField:'id',
+			displayField:'name',
+			typeAhead: true,
+			mode: 'local',
+			triggerAction: 'all',
+			emptyText:'Выбирете регион...',
+			selectOnFocus:true,
+			width:190
+		    }),
+		    {
+			xtype: 'datefield', // use xtype instead of renderer
+			allowBlank:false,
+			format: 'Y-m-d',
+			name: 'start_date',
+			fieldLabel: 'Дата начала'
+		    },
+		    {
+			xtype: 'datefield', // use xtype instead of renderer
+			allowBlank:false,
+			format: 'Y-m-d',
+			name: 'end_date',
+			fieldLabel: 'Дата окончания'
+		    },
+		    new Ext.form.ComboBox({
+			    fieldLabel: 'Файл',
+			    hiddenName:'file',
+			    store: filesStore,
+			    valueField:'id',
+			    displayField:'name',
+			    typeAhead: true,
+			    mode: 'local',
+			    triggerAction: 'all',
+			    emptyText:'Выбирете файл...',
+			    selectOnFocus:true,
+			    width:190
+		    })
+		],
+		buttons: [{
+		    text: 'Сохранить',
+		    handler: function(){
+			formAddTracker.getForm().submit({
+			    url:'controller.php?param=addTracker',
+			    waitTitle: 'пожалуйста подождите...',
+			    waitMsg: 'вход в систему выполняется',
+			    success: function(form,action){
+				    gridStore.load();
+				    Ext.Msg.alert('Трекер успешно добавлен !',action.result.message);
+                                }
+			});
+		    }
+		},{
+		    text: 'Отмена',
+		    handler: function(){
+			
+			formAddTracker.getForm().reset();
+			winAddTracker.hide();
+		    }
+		}]
+	    });
+	    
+	    
+	    /*
+	    * windows
+	    * 
+	    */
+	    if(!winAddTracker){
+		winAddTracker = new Ext.Window({
+		    id     : 'winAddTracker',
+		    height : 400,
+		    width  : 400,
+		    closeAction:'hide',
+                    plain: true,
+		    items  : [formAddTracker]
+		});
+	    }
+	    
+	    if(!winAddFile){
+		winAddFile = new Ext.Window({
+		    id     : 'winAddFile',
+		    height : 400,
+		    width  : 400,
+		    closeAction:'hide',
+                    plain: true,
+		    items  : [fileUploadform]
+		});
+	    }
+	    
+           
+            //initializeMap();
+            
+        });
+        
+    /**
+     * initializeMap
+     */
+    function initializeMap() {
+    
+        var myLatlng = new google.maps.LatLng(41.875696,-87.624207);
+        var myOptions = {
+          zoom: 11,
+          center: myLatlng,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        
+        var map = new google.maps.Map(document.getElementById("west-region-container"), myOptions);
+        var ctaLayer = new google.maps.KmlLayer('http://dl.dropbox.com/u/6441573/12.kml');
+        ctaLayer.setMap(map);   
+    }
+    
+    
+    
+    
+    
+    /**
+     * showProportys
+     */
+    function showProportys(index, id){
+	
+
+	var startCityId = gridStore.getAt(index).get("start_city_id");
+	var endCityId = gridStore.getAt(index).get("end_city_id");
+	var startDate = gridStore.getAt(index).get("start_date");
+	var endDate =  gridStore.getAt(index).get("end_date");
+	var visible =  gridStore.getAt(index).get("visible");
+	
+	//Ext.Msg.alert('showProportys','city start=' + );
+		      
+	var startCityName = cityStore.getById(startCityId).get("name");
+	var endCityName = cityStore.getById(endCityId).get("name");
+	
+	if (visible>0){
+	    visible = 'да';
+	}else{
+	    visible = 'нет';
+	}
+	
+	//propGridTrecker.setSource(jsonGridReader.jsonData.rows[0]);
+	
+	
+	
+	//var propGrid = Ext.getCmp('propGridTrecker');
+	//// make sure the property grid exists
+	//if (propGrid) {
+	//    // populate the property grid with store data
+	//    propGrid.setSource({
+	//	//"(name)": "My Object",
+	//	"Дата начала": new Date(Date.parse(startDate)),  // date type
+	//	"Дата окончания": new Date(Date.parse(startDate)),  // date type
+	//	"Комментарии": jsonGridReader.jsonData.rows[0].comments,      // decimal type
+	//	"Активен" : visible,
+	//	"Город отправления": startCityName,
+	//	"Город прибытия": endCityName
+	//    });
+	    
+	    //alert("start city Id = " + startCityId  );
+	//}
+    }
+    
+    
+    /**
+     * renderProportys
+     */
+    function renderProportys(sm, row, rec){
+	
+	var newRec = rec.copy();
+	Ext.data.Record.id(newRec); // automatically generate a unique sequential id
+	
+	var startCityId = rec.get("start_city_id");
+	var endCityId = rec.get("end_city_id");
+	var countryId = rec.get("id_country");
+	var regionId = rec.get("id_region");
+	var file = rec.get("file");
+	var userId = rec.get("id_user");
+	var trackId = rec.get("id");
+	
+	var startCityName = cityStore.getById(startCityId).get("name");
+	var endCityName = cityStore.getById(endCityId).get("name");
+	var countryName = countryStore.getById(countryId).get("name");
+	var regionName = regionStore.getById(regionId).get("name");
+	var user_name = usersStore.getById(userId).get("name");
+	
+	
+	
+	
+	newRec.set('start_city_name',startCityName);
+	newRec.set('end_city_name',endCityName);
+	newRec.set('country_name',countryName);
+	newRec.set('region_name',regionName);
+	newRec.set('user_name',user_name);
+	newRec.set('track_id',trackId);
+	
+	//rec.set('file',regionName);
+	
+	
+	Ext.getCmp("prop-grid-trecker").getForm().loadRecord(newRec);
+	//Ext.get('debug-canvas').update(dump(rec.data));
+    }
+    
+    
+    /**
+     * test
+    */
+    function encodeAJAXreq(id, param, val, str){
+	
+	//var obj = {'id': id, (param.toString()): val}; Ext.encode(obj);//
+	val = val.replace(/\"/g, ''); 
+	
+	if (str==''){
+	    str = '{"id":"'+ id +'", "' + param + '":' + Ext.encode(val) + '}';
+	}else{
+	    str += ',{"id":"'+id +'","' + param + '":' + Ext.encode(val) + '}';
+	}
+	
+	return str;
+    }
+    
+    /**
+     * test
+    */
+    function test(){
+	//dump( jsonCityReader.jsonData.citys);
+	//dump( jsonGridReader.jsonData.rows[0]);
+	alert(Ext.get('trackers').dom.value);
+	Ext.getCmp("prop-grid-trecker").getForm().submit({
+                                url: 'controller.php?param=test',
+                                waitMsg: 'идет загрузка файла...',
+                                success: function(form,action){
+				    // update content of grid
+				    //filesStore.load();
+				    Ext.Msg.alert('загрузка файла',action.result.message);
+                                }
+                            });
+	
+    }
+      
+</script>
+</head>
+
+<body>
+    <div id="main-canvas" style="width:100%; height:100%"></div>
+    <div id="show-map-canvas" ></div>
+    <div id="debug-canvas" >debug-canvas</div>
+  <button onclick="test()"> </button>
+  
+  <select name="visible" id="visible" style="display: none;"> 
+    	<option value="1">Да</option> 
+    	<option value="0">Нет</option> 
+    </select> 
+</body>
+
+</html>
