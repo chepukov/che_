@@ -5,8 +5,8 @@
     <link rel="stylesheet" type="text/css" href="js/resources/css/ext-all.css" />
     <link rel="stylesheet" type="text/css" href="js/examples/ux/fileuploadfield/css/fileuploadfield.css" />
     <style type="text/css">
-      html { height: 100% }
-      body { height: 100%; margin: 0px; padding: 0px }
+      html { height: 100% ;}
+      body { height: 100%; margin: 0px; padding: 0px ;}
       #map_canvas { height: 100% }
     </style>
     
@@ -30,6 +30,7 @@
 	
 	var winAddTracker;
 	var winAddFile;
+	var winAddItem;
 	// shorthand alias
 	var fm = Ext.form;
 
@@ -60,6 +61,16 @@
                 //create : 'app.php/users/create',
                 //update: 'app.php/users/update',
                 destroy: {url: 'controller.php?param=delFile', method: 'GET'}
+            }
+        });
+	
+	
+	var proxyItems = new Ext.data.HttpProxy({
+            api: {
+                read : {url: 'controller.php?param=selectItems', method: 'GET'},
+                //create : 'app.php/users/create',
+                //update: 'app.php/users/update',
+                destroy: {url: 'controller.php?param=delItem', method: 'GET'}
             }
         });
 	
@@ -122,7 +133,7 @@
 	/*
 	* WRITERS
 	*/
-	var jsonFilesWriter = new Ext.data.JsonWriter({
+	var jsonWriter = new Ext.data.JsonWriter({
 	    encode: true,
 	    writeAllFields: true
 	});
@@ -153,7 +164,9 @@
 	
 	/* cityStore   */
 	var cityStore = new Ext.data.Store({
-		reader: jsonCityReader
+		reader: jsonCityReader///,
+		//proxy:proxyItems,
+		//writer: jsonWriter
 	});
 	
 	/* filesStore   */
@@ -161,7 +174,7 @@
 		//url:'',
 		reader:  jsonFilesReader,
 		proxy:proxy,
-		writer: jsonFilesWriter,
+		writer: jsonWriter,
 		remoteSort: true,
 		autoSave: true
 	});
@@ -169,18 +182,26 @@
 	/* CountryStore   */
 	var countryStore = new Ext.data.Store({
 		reader:  jsonCountryReader,
-		remoteSort: true
+		//proxy:proxyItems,
+		//writer: jsonWriter,
+		//remoteSort: true,
+		autoSave: true
 	});
 	
 	/* regionStore   */
 	var regionStore = new Ext.data.Store({
 		reader:  jsonRegionReader,
-		remoteSort: true
+		//proxy:proxyItems,
+		//writer: jsonWriter,
+		//remoteSort: true,
+		autoSave: true
 	});
 	
-	/* filesStore   */
+	/* usersStore   */
 	var usersStore = new Ext.data.Store({
 		reader:  jsonUsersReader,
+		//proxy:proxyItems,
+		//writer: jsonWriter//,
 		autoSave: true
 	});
 	
@@ -669,7 +690,7 @@
 		    visStr = 'Нет';
 		}
 		
-		
+		console.log('render = ' + gridStore.find('start_city_id', record.data.id));
 		return '<div style="white-space:normal !important;">'+
 		    '<h2>' + visStr + '</h2>';
 	    }
@@ -827,6 +848,18 @@
 	    */
 	    
 	    
+	    // renderFiles
+	    function renderFiles(value, p, record){
+		var visStr = '';
+		//console.log(record.data.name + ' = ' + gridStore.find('start_city_id', record.data.id));
+		
+		if (gridStore.find('file', record.data.id)>=0 ){
+		     visStr = '<div style="color:blue;">(не удалять!)</div>';
+		}
+
+		return record.data.name + visStr;
+	    }
+	    
 	     /*
 	    * cmFiles
 	    */
@@ -838,13 +871,17 @@
 		columns: [
 		    {header:'id',
 			dataIndex: 'id',
-			width: 30},
-		    {header:'Путь',
+			width: 30
+		    },{
+			header:'Путь',
 			dataIndex: 'src',
-			width: 150},
-		    {header:'Файл',
+			width: 150
+		    },{
+			header:'Файл',
 			dataIndex: 'name',
-			width: 150}]
+			renderer:renderFiles,
+			width: 150
+		    }]
 	    });
 	    
 	    
@@ -883,6 +920,18 @@
 	     USERS GRID
 	    */
 	    
+	    // renderUsers
+	    function renderUsers(value, p, record){
+		var visStr = '';
+		//console.log(record.data.name + ' = ' + gridStore.find('start_city_id', record.data.id));
+		
+		if (gridStore.find('id_user', record.data.id)>=0 ){
+		     visStr = '<div style="color:blue;">(не удалять!)</div>';
+		}
+
+		return record.data.name + visStr;
+	    }
+	    
 	     /*
 	    * cmUsers
 	    */
@@ -892,12 +941,16 @@
 		    sortable: true // columns are not sortable by default           
 		},
 		columns: [
-		    {header:'id',
+		    {
+			header:'id',
 			dataIndex: 'id',
-			width: 30},
-		    {header:'Имя',
+			width: 30
+		    },{
+			header:'Имя',
 			dataIndex: 'name',
-			width: 200}]
+			renderer:renderUsers,
+			width: 200
+		    }]
 	    });
 	    
 	    
@@ -916,25 +969,47 @@
 			handler : function(){
 			    // access the Record constructor through the grid's store
 			    //Ext.Msg.alert('Add track');
-			    winAddFile.show(this);
+			    addItemFormPanel.setTitle('Добавить пользователя');
+			    winAddItem.show(this);
 			    }
 			},'-',{
 			text: 'Удалить',
 			handler : function(){
-			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    var index = gridUsers.getSelectionModel().getSelectedCell();
 			    if (!index) {
 				return false;
 			    }
-			    var rec = gridFiles.store.getAt(index[0]);
-			    gridFiles.store.remove(rec);
+			    
+			    var rec = gridUsers.store.getAt(index[0]);
+			    sendDelReq(gridUsers.store,rec,'delItem','id=' + rec.id + '&tbl=' + 'users');
+			    //gridUsers.store.remove(rec);
+			    
 			    }
 			}]
 	    });
 	    
 	    
+	    
+	    
+	    
+	    
+	    
+	    
 	    /*
 	     CITY GRID
 	    */
+	    
+	    //renderCity
+	    function renderCity(value, p, record){
+		var visStr = '';
+		//console.log(record.data.name + ' = ' + gridStore.find('start_city_id', record.data.id));
+		
+		if (gridStore.find('start_city_id', record.data.id)>=0 || gridStore.find('end_city_id', record.data.id)>=0){
+		     visStr = '<div style="color:blue;">(не удалять!)</div>';
+		}
+
+		return record.data.name + visStr;
+	    }
 	    
 	     /*
 	    * cmCity
@@ -945,12 +1020,17 @@
 		    sortable: true // columns are not sortable by default           
 		},
 		columns: [
-		    {header:'id',
+		    {
+			header:'id',
 			dataIndex: 'id',
-			width: 30},
-		    {header:'Имя',
+			width: 30
+		    },{
+			header:'Имя',
 			dataIndex: 'name',
-			width: 200}]
+			renderer:renderCity,
+			width: 200
+			
+		    }]
 	    });
 	    
 	    
@@ -962,27 +1042,63 @@
 		    height:400,
 		    store: cityStore,
 		    loadMask: true,
+		    //view:new Ext.grid.GridView(),
 		    //clickstoEdit: 1,
-		    cm: cmUsers,
+		    cm: cmCity,
+		    viewConfig: {
+			forceFit:true,
+			enableRowBody:true,
+			showPreview:true,
+			getRowClass: function(record, index) {
+			    //if (gridStore.find('start_city_id', record.data.id)>=0 ||
+			    //	gridStore.find('end_city_id', record.data.id)>=0)
+			    //return 'x-box-mc';
+			}
+		    },
 		    tbar: [{
 			text: 'Добавить',
 			handler : function(){
 			    // access the Record constructor through the grid's store
 			    //Ext.Msg.alert('Add track');
-			    winAddFile.show(this);
+			    winAddItem.show(this);
 			    }
 			},'-',{
 			text: 'Удалить',
 			handler : function(){
-			    var index = gridFiles.getSelectionModel().getSelectedCell();
+			    var index = gridCity.getSelectionModel().getSelectedCell();
 			    if (!index) {
 				return false;
 			    }
-			    var rec = gridFiles.store.getAt(index[0]);
-			    gridFiles.store.remove(rec);
+			    var rec = gridCity.store.getAt(index[0]);
+			    //gridCity.store.remove(rec);
+			    sendDelReq(gridCity.store,rec,'delItem','id=' + rec.id + '&tbl=' + 'city');
 			    }
 			}]
 	    });
+	    
+	    
+	    
+	    
+	    
+	    
+	    
+	    
+	    
+	    /*
+	     COUNTRY GRID
+	    */
+	    
+	    //renderCountry
+	    function renderCountry(value, p, record){
+		var visStr = '';
+		//console.log(record.data.name + ' = ' + gridStore.find('start_city_id', record.data.id));
+		
+		if (gridStore.find('id_country', record.data.id)>=0 ){
+		     visStr = '<div style="color:blue;">(не удалять!)</div>';
+		}
+
+		return record.data.name + visStr;
+	    }
 	    
 	    
 	     /*
@@ -994,12 +1110,16 @@
 		    sortable: true // columns are not sortable by default           
 		},
 		columns: [
-		    {header:'id',
+		    {
+			header:'id',
 			dataIndex: 'id',
-			width: 30},
-		    {header:'Название',
+			width: 30
+		    },{
+			header:'Название',
 			dataIndex: 'name',
-			width: 300}]
+			renderer:renderCountry,
+			width: 300
+		    }]
 	    });
 	    
 	    
@@ -1018,21 +1138,40 @@
 			handler : function(){
 			    // access the Record constructor through the grid's store
 			    //Ext.Msg.alert('Add track');
-			    winAddFile.show(this);
+			    winAddItem.show(this);
 			    }
 			},'-',{
 			text: 'Удалить',
 			handler : function(){
-			    var index = gridFiles.getSelectionModel().getSelectedCell();
-			    if (!index) {
-				return false;
-			    }
-			    var rec = gridFiles.store.getAt(index[0]);
-			    gridFiles.store.remove(rec);
+				var index = gridCountry.getSelectionModel().getSelectedCell();
+				if (!index) {
+				    return false;
+				}
+				var rec = gridCountry.store.getAt(index[0]);
+				//gridCountry.store.remove(rec);
+				sendDelReq(gridCountry.store,rec,'delItem','id=' + rec.id + '&tbl=' + 'country');
 			    }
 			}]
 	    });
 	    
+	    
+	    
+	    
+	    /*
+	     REGION GRID
+	    */
+	    
+	    //renderRegion
+	    function renderRegion(value, p, record){
+		var visStr = '';
+		//console.log(record.data.name + ' = ' + gridStore.find('start_city_id', record.data.id));
+		
+		if (gridStore.find('id_region', record.data.id)>=0 ){
+		    visStr = '<div style="color:blue;">(не удалять!)</div>';
+		}
+
+		return record.data.name + visStr;
+	    }
 	    
 	     /*
 	    * cmRegion
@@ -1043,12 +1182,16 @@
 		    sortable: true // columns are not sortable by default           
 		},
 		columns: [
-		    {header:'id',
+		    {
+			header:'id',
 			dataIndex: 'id',
-			width: 30},
-		    {header:'Название',
+			width: 30
+		    },{
+			header:'Название',
 			dataIndex: 'name',
-			width: 300}]
+			renderer:renderRegion,
+			width: 300
+		    }]
 	    });
 	    
 	    
@@ -1067,17 +1210,18 @@
 			handler : function(){
 			    // access the Record constructor through the grid's store
 			    //Ext.Msg.alert('Add track');
-			    winAddFile.show(this);
+			    winAddItem.show(this);
 			    }
 			},'-',{
 			text: 'Удалить',
 			handler : function(){
-			    var index = gridFiles.getSelectionModel().getSelectedCell();
-			    if (!index) {
-				return false;
-			    }
-			    var rec = gridFiles.store.getAt(index[0]);
-			    gridFiles.store.remove(rec);
+				var index = gridRegion.getSelectionModel().getSelectedCell();
+				if (!index) {
+				    return false;
+				}
+				var rec = gridRegion.store.getAt(index[0]);
+				//gridRegion.store.remove(rec);
+				sendDelReq(gridRegion.store,rec,'delItem','id=' + rec.id + '&tbl=' + 'region');
 			    }
 			}]
 	    });
@@ -1188,6 +1332,34 @@
                             });
 			    
 			    
+                        }
+                    }
+                }]
+            })
+	    
+	    
+	    
+	    /*
+	    * addItemFormPanel
+	    */
+	    addItemFormPanel= new Ext.FormPanel({
+		title: '---',
+                autoHeight: true,
+		width:300,
+		//layout: 'fit',
+                bodyStyle: 'padding: 10px;',
+		defaultType: 'textfield',
+                //labelWidth: 75,
+                items:[{
+		    fieldLabel: 'Данные',
+		    name: 'item',
+		    allowBlank:false
+		}],
+                buttons: [{
+                    text: 'Сохранить',
+                    handler: function(){
+                        if(fileUploadform.getForm().isValid()){
+		    
                         }
                     }
                 }]
@@ -1354,11 +1526,23 @@
 	    if(!winAddFile){
 		winAddFile = new Ext.Window({
 		    id     : 'winAddFile',
-		    height : 400,
-		    width  : 400,
+		    //height : 400,
+		    //width  : 400,
 		    closeAction:'hide',
                     plain: true,
 		    items  : [fileUploadform]
+		});
+	    }
+	    
+	    
+	    if(!winAddItem){
+		winAddItem = new Ext.Window({
+		    id     : 'winAddItem',
+		   //height : 400,
+		    //width  : 400,
+		    closeAction:'hide',
+                    plain: true,
+		    items  : [addItemFormPanel]
 		});
 	    }
 	    
@@ -1473,6 +1657,32 @@
 	//Ext.get('debug-canvas').update(dump(rec.data));
     }
     
+    
+    /**
+     * sendDelReq
+    */
+    function sendDelReq(store, rec,action,params){
+	Ext.Ajax.request({
+	    url : 'controller.php?param=' + action, 
+	    params : params,
+	    method: 'GET',
+	    success: function ( result, request ) {
+		
+		    try {
+			var jsonData = Ext.util.JSON.decode(result.responseText);
+		        Ext.MessageBox.alert('Успешное выполнение действия', jsonData.message);
+			store.remove(rec);
+			
+		    }catch (err) {
+			Ext.MessageBox.alert('Ошибка', 'Could not decode ' + result.responseText);
+		    }
+		    
+	    },
+	    failure: function ( result, request) { 
+		    Ext.MessageBox.alert('Ошибка', result.responseText); 
+	    } 
+	});
+    }
     
     /**
      * test

@@ -165,7 +165,34 @@
             break;
             
             
-            
+            //delItem
+            case 'delItem':
+                $result["message"] = '';
+                
+                if (isset($_GET['tbl'])){
+                    $table = 'al_'.stripslashes(urldecode($_GET['tbl']));
+                    
+                    if(isset($_GET['id'])){
+                        
+                        $id = stripslashes(urldecode($_GET['id']));
+                        
+                        if ($tracker->delRow($table,$id)){
+                            
+                            $result["success"] = true;
+                            $result["message"] .= 'item '.$id.' was removed from table '.$table.' <br />';
+                        }else{
+                            $result["message"] .= 'error at deleting item from table '.$table.' <br />';
+                        }
+
+                        
+                    }else{
+                        $result["message"] = 'id of item not set <br />';  
+                    }
+                    
+                }else{
+                    $result["message"] = 'table not set <br />';
+                }
+            break;
             
             
             //delTracker
