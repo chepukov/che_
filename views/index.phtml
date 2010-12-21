@@ -355,7 +355,7 @@
 			fn: function(grid, rowIndex, columnIndex, e){
 			    
 			    var rec = gridTrackers.store.getAt(rowIndex);
-			    rec.data.comments = '<div style="background-color:#ccc;">' + rec.data.comments + '</div>';
+			    rec.data.comments = '<div style="color:blue;">' + rec.data.comments + '</div>';
 			    //Ext.Msg.alert('cellclick',dump(rec.data));
 			    var file = filesStore.getById(rec.data.file).get("src");
 			    //Ext.Msg.alert('cellclick',kmlURL + file + '--' + ip);
