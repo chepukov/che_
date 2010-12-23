@@ -199,14 +199,13 @@
             case 'delTracker':
                 $t = 0;
                 $result["message"] = '';
-                $id = $_GET['trackers'];
+                $id = stripslashes($_GET['trackers']);
                 $id = str_replace("\"", "", $id);
                 
                 $t = $tracker->selectTracker($id);
 
                 if ($tracker->delRow('al_points',$id)){
                     $result["success"] = true;
-                   
                     $result["message"] .= 'tracker '.$id.'was removed from DB <br />';
                     
                     // tracker whith $id was selected
@@ -215,7 +214,7 @@
                             $result["message"] .= 'file asociated with trecker was removed (id:'+ $t['file'] +')';
                     }
                 }else{
-                    $result["message"] .= 'error at deleting tracker from DB <br />';
+                    $result["message"] .= 'error at deleting tracker from DB ' .$id. '<br /> ';
                 }
             break;
         
