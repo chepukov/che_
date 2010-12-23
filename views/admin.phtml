@@ -967,9 +967,9 @@
 		    tbar: [{
 			text: 'Добавить',
 			handler : function(){
-			    // access the Record constructor through the grid's store
-			    //Ext.Msg.alert('Add track');
+			    addItemFormPanel.getForm().reset();
 			    addItemFormPanel.setTitle('Добавить пользователя');
+			    addItemFormPanel.getForm().findField('tbl').setValue('users');
 			    winAddItem.show(this);
 			    }
 			},'-',{
@@ -982,8 +982,6 @@
 			    
 			    var rec = gridUsers.store.getAt(index[0]);
 			    sendDelReq(gridUsers.store,rec,'delItem','id=' + rec.id + '&tbl=' + 'users');
-			    //gridUsers.store.remove(rec);
-			    
 			    }
 			}]
 	    });
@@ -1058,8 +1056,9 @@
 		    tbar: [{
 			text: 'Добавить',
 			handler : function(){
-			    // access the Record constructor through the grid's store
-			    //Ext.Msg.alert('Add track');
+			    addItemFormPanel.getForm().reset();
+			    addItemFormPanel.setTitle('Добавить город');
+			    addItemFormPanel.getForm().findField('tbl').setValue('city');
 			    winAddItem.show(this);
 			    }
 			},'-',{
@@ -1136,8 +1135,9 @@
 		    tbar: [{
 			text: 'Добавить',
 			handler : function(){
-			    // access the Record constructor through the grid's store
-			    //Ext.Msg.alert('Add track');
+			    addItemFormPanel.getForm().reset();
+			    addItemFormPanel.setTitle('Добавить страну');
+			    addItemFormPanel.getForm().findField('tbl').setValue('country');
 			    winAddItem.show(this);
 			    }
 			},'-',{
@@ -1208,8 +1208,9 @@
 		    tbar: [{
 			text: 'Добавить',
 			handler : function(){
-			    // access the Record constructor through the grid's store
-			    //Ext.Msg.alert('Add track');
+			    addItemFormPanel.getForm().reset();
+			    addItemFormPanel.setTitle('Добавить регион');
+			    addItemFormPanel.getForm().findField('tbl').setValue('region');
 			    winAddItem.show(this);
 			    }
 			},'-',{
@@ -1354,12 +1355,27 @@
 		    fieldLabel: 'Данные',
 		    name: 'item',
 		    allowBlank:false
+		},{
+		    xtype:'hidden',
+		    id:'tbl',
+		    name:'tbl',
+		    value:'---'
 		}],
                 buttons: [{
                     text: 'Сохранить',
                     handler: function(){
-                        if(fileUploadform.getForm().isValid()){
-		    
+                        if(addItemFormPanel.getForm().isValid()){
+			    //alert('is valid');
+			    addItemFormPanel.getForm().submit({
+				url:'controller.php?param=addItem',
+				method:'GET',
+				waitTitle: 'пожалуйста подождите...',
+				waitMsg: 'выполняется обработка данных',
+				success: function(form,action){
+					storeAll.load();
+					Ext.Msg.alert('Элемент успешно добавлен !',action.result.message);
+				    }
+			    });
                         }
                     }
                 }]
@@ -1490,7 +1506,7 @@
 			formAddTracker.getForm().submit({
 			    url:'controller.php?param=addTracker',
 			    waitTitle: 'пожалуйста подождите...',
-			    waitMsg: 'вход в систему выполняется',
+			    waitMsg: 'выполняется обработка данных',
 			    success: function(form,action){
 				    storeAll.load();
 				    Ext.Msg.alert('Трекер успешно добавлен !',action.result.message);

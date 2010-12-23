@@ -63,9 +63,10 @@
             break;
             
             case 'test':
-                 $result['param'] = 'test';
+                $result['param'] = 'test';
                 $result['get'] = $_GET;
                 $result['post'] = $_POST;
+                $result["success"] = true;
             break;
             
             case 'selectAllTrackers':
@@ -164,6 +165,36 @@
                 
             break;
             
+            //addItem
+            case 'addItem':
+                $result["message"] = '';
+                
+                if (isset($_GET['tbl'])){
+                    $table = 'al_'.stripslashes(urldecode($_GET['tbl']));
+                    
+                    if(isset($_GET['item'])){
+                        
+                        $item = stripslashes(urldecode($_GET['item']));
+                        
+                        if (!($tracker->checkDuplicat($table,'name',$item))){
+                            $tracker->insert($table , array('name'=>$item));
+                            $result["message"] .= 'item '.$item.' was added to table '.$table.' <br />';
+                        }else{
+                            $result["message"] .= 'error at adding item to table '.$table.', duplicated item <br />';
+                        }
+                        $result["success"] = true;
+
+                        
+                    }else{
+                        $result["message"] = 'item not set <br />';  
+                    }
+                    
+                }else{
+                    $result["message"] = 'table not set <br />';
+                }
+            break;
+        
+        
             
             //delItem
             case 'delItem':
